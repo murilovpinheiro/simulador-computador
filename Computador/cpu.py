@@ -1,0 +1,487 @@
+# Equipe:
+# Guilherme de Menezes Furtado
+# Murilo Vinicius Almeida Pinheiro
+
+import memory
+from array import array
+
+MPC = 0
+MIR = 0
+
+MAR = 0
+MDR = 0
+PC = 0
+MBR = 0
+
+W = 0
+X = 0
+Y = 0
+V = 0
+H = 0
+#ADICIONAMOS 2 REGISTRADORES, W E V
+
+N = 0
+Z = 1
+
+BUS_A = 0
+BUS_B = 0
+BUS_C = 0
+
+firmware = array('Q', [0]) * 512 # Array de microinstruções
+
+
+#main: PC <- PC + 1; MBR <- read_byte(PC); GOTO MBR
+firmware[0] = 0b0000000001000011010100100000001001
+
+
+#X = X + mem[address]
+##2: PC <- PC + 1; MBR <- read_byte(PC); GOTO 3
+firmware[2] = 0b0000000110000011010100100000001001
+##3: MAR <- MBR; read_word; GOTO 4
+firmware[3] = 0b0000001000000001010010000000010010
+##4: H <- MDR; GOTO 5
+firmware[4] = 0b0000001010000001010000000001000000
+##5: X <- H + X; GOTO 0
+firmware[5] = 0b0000000000000011110000010000000011
+
+
+#mem[address] = X
+##6: PC <- PC + 1; fetch; GOTO 7
+firmware[6] = 0b0000001110000011010100100000001001
+##7: MAR <- MBR; GOTO 8
+firmware[7] = 0b0000010000000001010010000000000010
+##8: MDR <- X; write; GOTO 0
+firmware[8] = 0b0000000000000001010001000000100011
+
+
+#goto address
+##9: PC <- PC + 1; fetch; GOTO 10
+firmware[9] = 0b0000010100000011010100100000001001
+##10: PC <- MBR; fetch; GOTO MBR
+firmware[10] = 0b0000000001000001010000100000001010
+
+
+#if X = 0 then goto address
+## 11: X <- X; IF ALU = 0; GOTO 268; ELSE GOTO 12
+firmware[11] =  0b0000011000010001010000010000000011
+## 12: PC <- PC + 1; GOTO 0
+firmware[12] =  0b0000000000000011010100100000000001
+## 268: GOTO 9
+firmware[268] = 0b0000010010000000000000000000000000
+
+
+#X = X - mem[address]
+##13: PC <- PC + 1; fetch; goto 14
+firmware[13] = 0b0000011100000011010100100000001001
+##14: MAR <- MBR; read; goto 15
+firmware[14] = 0b0000011110000001010010000000010010
+##15: H <- MDR; goto 16
+firmware[15] = 0b0000100000000001010000000001000000
+##16: X <- X - H; goto 0
+firmware[16] = 0b0000000000000011111100010000000011
+
+
+#MDR = (mem[MAR])!
+##17: PC <- PC + 1; MBR <- read_byte(PC); GO TO 18
+firmware[17] = 0b0000100100000011010100100000001001
+##18: MAR <- MBR;  GO TO 19
+firmware[18] = 0b0000100110000001010010000000000010
+##19: H <- 1; MDR <- mem[MAR]; GO TO 20
+firmware[19] = 0b0000101000000011000100000001010000
+##20: IF MDR = 0 GO TO 256 + 21; ELSE GO TO 21
+firmware[20] = 0b0000101010010001010000000000000000
+##21: H <- H * MDR; GO TO 22
+firmware[21] = 0b0000101100000010110000000001000000
+##22: MDR <- MDR - 1; GO TO 20
+firmware[22] = 0b0000101000000011011001000000000000
+##277: MDR <- H; GO TO 0
+firmware[277] =0b0000000000000001100001010000000000
+
+
+#mem[MAR] = MDR
+##23: PC <- PC + 1; MBR <- read_byte(PC) ~fetch~; GO TO 24
+firmware[23] = 0b0000110000000011010100100000001001
+##MAR <- MBR; GO TO 0
+firmware[24] = 0b0000000000000001010010000000100010
+
+
+#RETORNA MENOR
+##25:H <- X
+firmware[25] = 0b0000110100000001010000000001000011
+##26: PC <- PC + 1; MBR <- read_byte(PC) ~fetch~; GO TO 27
+firmware[26] = 0b0000110110000011010100100000001001
+##27: MAR <- MBR; read_word[MAR]; GO TO 28
+firmware[27] = 0b0000111000000001010010000000010010
+##28: W <- MDR - H; GO TO 29
+firmware[28] = 0b0000111010000011111100000100000000
+##29: H <- 1; GO TO 30
+firmware[29] = 0b0000111100000011000100000001000000
+##30: H <- ~H>>1; GO TO 31
+firmware[30] = 0b0000111110001001101000000001000000
+##31 H <- ~H; GO TO 32
+firmware[31] = 0b0001000000000001101000000001000000
+##32: if(W and H) NZ; GO TO 33; OR 289
+firmware[32] = 0b0001000010100000110000000000000101
+##33: MDR <- X; GO TO 34
+firmware[33] = 0b0001000100000001010001000000000011
+##34: MAR <- 1; write_word[MAR]; GO TO 0
+firmware[34] = 0b0000000000000011000110000000100000
+#289: GO TO 34
+firmware[289] =0b0001000100000000000000000000000000
+
+
+#mem[1] <- mem[adress] % X
+## 35: IF X = 0 GO TO 292; ELSE GO TO 36
+firmware[35] = 0b0001001000010001010000000000000000
+## 36: PC <- PC + 1; fetch; GO TO 37
+firmware[36] = 0b0001001010000011010100100000001001
+## 37: MAR <- MBR; GO TO 38
+firmware[37] = 0b0001001100000001010010000000000010
+## 38: H <- 1; MDR <- read_word(MAR); GO TO 42
+firmware[38] = 0b0001010100000011000100000001010000
+## 39: H <- ~H >> 1; GO TO 43
+firmware[42] = 0b0001010110001001101000000001000000
+## 40: V <- ~H; GO TO 44
+firmware[43] = 0b0001011000000001101000000010000000
+## 41: H <- X; GO TO 45
+firmware[44] = 0b0001011010000001010000000001000011
+
+#####LOOP DE DIVISÂO PRINCIPAL
+## 45: MDR e H <- MDR - H; GO TO 46
+firmware[45] = 0b0001011100000011111101000001000000
+## 46: IF H & V != 0 GO TO 303; ELSE GO TO 47
+firmware[46] = 0b0001011110100000110000000000000110
+## 47: H <- X; GO TO 45
+firmware[47] = 0b0001011010000001010000000001000011
+## 303: H <- X; GO TO 48
+firmware[303] =0b0001100000000001010000000001000011
+
+## 48: MDR <- MDR + H; GO TO 49
+firmware[48] = 0b0001100010000011110001000000000000
+## 49: MAR <- 1; GO TO 50
+firmware[49] = 0b0001100100000011000110000000000000
+## 50: mem[MAR] <- MDR; GO TO 51
+firmware[50] = 0b0001100110000000000000000000100000
+## 48: GO TO 0
+firmware[51] = 0b0000000000000001000000000000000000
+## 292: GO TO HALT
+firmware[292] = 0b0111111110000000000000000000000000
+
+
+#X <- 1;
+##53: X <- 1
+firmware[53] = 0b0000000000000011000100010000000000
+
+
+#X <- 0;
+##52: X <- 0
+firmware[52] = 0b0000000000000001000000010000000000
+
+
+# Coloca o piso da raiz quadrada de mem[MAR] em mem[1]
+## 64: PC <- PC + 1; fetch; GO TO 65
+firmware[64] = 0b0010000010000011010100100000001001
+## 65: MAR <- MBR; GO TO 66
+firmware[65] = 0b0010000100000001010010000000000010
+## 66: MDR <- read_word(MAR); GO TO 67
+firmware[66] = 0b0010000110000000000000000000010000
+## 67: X <- MDR; IF 0 GO TO 324; ELSE GO TO 68
+firmware[67] = 0b0010001000010001010000010000000000
+## 68: H <- 1; GO TO 69
+firmware[68] = 0b0010001010000011000100000001000000
+## 69: H <- (~H) >> 1; GO TO 70
+firmware[69] = 0b0010001100001001101000000001000000 
+## 70: V <- ~H; GO TO 71
+firmware[70] = 0b0010001110000001101000000010000000
+## 71: H <- 1; GO TO 72
+firmware[71] = 0b0010010000000011000100000001000000
+
+## 72: MDR e H <- H + 1; GO TO 73
+firmware[72] = 0b0010010010000011100101000001000000
+## 73: H <- H * MDR; GO TO 74
+firmware[73] = 0b0010010100000010110000000001000000
+## 74: H <- X - H; GO TO 75
+firmware[74] = 0b0010010110000011111100000001000011
+## 75: IF (H AND V) != 0 GO TO 332; ELSE GO TO 76
+firmware[75] = 0b0010011000100000110000000000000110
+## 76: H <- MDR; GO TO 72
+firmware[76] = 0b0010010000000001010000000001000000
+
+## 77: MAR <- 1; GO TO 78
+firmware[77] = 0b0010011100000011000110000000000010
+## 78: mem[MAR] <- MDR; GO TO 79
+firmware[78] = 0b0010011110000000000000000000100000
+## 79: GO TO 0
+firmware[79] = 0b0000000000000001000000000000000000
+## 324: GO TO 77
+firmware[324] = 0b0010011010000000000000000000000000
+## 332: MDR <- MDR - 1; GO TO 79
+firmware[332] = 0b0010011010000011011001000000000000
+
+
+# X <- mem[MAR] & X
+## 81: ṔC <- PC + 1; fetch; GO TO 82
+firmware[81] = 0b0010100100000011010100100000001001
+## 82: MAR <- MBR; GO TO 83
+firmware[82] = 0b0010100110000001010010000000000010
+## 83: H <- X; MDR <- read_word[MAR]; GO TO 84
+firmware[83] = 0b0010101000000001010000000001010011
+## 84: X <- MDR & H; GO TO 0
+firmware[84] = 0b0000000000000000110000010000000000
+
+
+# X <- Y se Y é primo; X <- 0 caso contrário
+## 86: MDR <- Y; GO TO 87
+firmware[86] = 0b0010101110000001010001000000000100
+## 87: H <- 1; GO TO 88
+firmware[87] = 0b0010110000000011000100000001000000
+## 88: IF (MDR AND H) = 0 GO TO 345; ELSE GO TO 89
+firmware[88] = 0b0010110010010000110000000000000000
+## 89: IF (W AND H) = 0 GO TO 346; ELSE GO TO 90
+firmware[89] = 0b0010110100010000110000000000000101
+## 90: H <- (~H) >> 1; GO TO 91
+firmware[90] = 0b0010110110001001101000000001000000
+## 91: V <- ~H; GO TO 92
+firmware[91] = 0b0010111000000001101000000010000000
+## 92: X <- MDR; GO TO 93
+firmware[92] = 0b0010111010000001010000010000000000
+## 93: H <- 0; GO TO 94
+firmware[93] = 0b0010111100000001000000000001000000
+## 94: H <- ~H << 1; GO TO 95
+firmware[94] = 0b0010111110000101101000000001000000
+## 95: IF (W AND H) = 0 GO TO 352; ELSE GO TO 96
+firmware[95] = 0b0011000000010000110000000000000101
+## 96: H <- W; GO TO 97
+firmware[96] = 0b0011000010000001010000000001000101
+## 97: H e MDR <- MDR - H; GO TO 98
+firmware[97] = 0b0011000100000011111101000001000000
+## 98: IF (H AND V) != 0 GO TO 349; ELSE GO TO 93
+firmware[98] = 0b0010111010100000110000000000000110
+## 99: MDR <- MDR + H; IF 0 GO TO 356; ELSE GO TO 100
+firmware[99] = 0b0011001000010011110001000000000000
+## 100: W <- W - 1; GO TO 101
+firmware[100] = 0b0011001010000011011000000100000101
+## 101: W <- W - 1; GO TO 102
+firmware[101] = 0b0011001100000011011000000100000101
+## 102: MDR <- X; GO TO 93
+firmware[102] = 0b0010111010000001010001000000000011
+## 345: H <- 1; GO TO 111
+firmware[345] = 0b0011011110000011000100000001000000
+## 346: W <- W - 1; GO TO 90
+firmware[346] = 0b0010110100000011011000000100000101
+## 349: H <- W; GO TO 99
+firmware[349] = 0b0011000110000001010000000001000101
+## 352: GO TO 0
+firmware[352] = 0b0000000000000001000000000000000000
+## 356: X <- 0; GO TO 0
+firmware[356] = 0b0000000000000001000000010000000000
+## 111: H <- (~H) << 1; GO TO 112
+firmware[111] = 0b0011100000000101101000000001000000
+## 112: IF (MDR & H) != 0 GO TO 369; ELSE GO TO 113
+firmware[112] = 0b0011100010100000110000000000000000
+## 113: GO TO 0
+firmware[113] = 0b0000000000000001000000000000000000
+## 369: X <- 0; GO TO 0
+firmware[369] = 0b0000000000000001000000010000000000
+
+# X <- mem[adress]
+## 103: PC <- PC + 1; fetch; GO TO 104
+firmware[103] = 0b0011010000000011010100100000001001
+## 104: MAR <- MBR; MDR <- read_word(MAR); GO TO 105
+firmware[104] = 0b0011010010000001010010000000010010
+## 105: X <- MDR; GO TO 0
+firmware[105] = 0b0000000000000001010000010000000000
+
+# W <- mem[adress]
+## 106: PC <- PC + 1; fetch; GO TO 107
+firmware[106] = 0b0011010110000011010100100000001001
+## 107: MAR <- MBR; MDR <- read_word(MAR); GO TO 108
+firmware[107] = 0b0011011000000001010010000000010010
+## 108: W <- MDR; GO TO 0
+firmware[108] = 0b0000000000000001010000000100000000
+
+# PC <- mem[adress]
+## 109: PC <- PC + 1; fetch; GO TO 110
+firmware[109] = 0b0011011100000011010100100000001001
+## 110: PC <- MBR; GO TO 0
+firmware[110] = 0b0000000000000001010000100000000010
+
+# Y <- mem[adress]
+## 114: PC <- PC + 1; fetch; GO TO 115
+firmware[114] = 0b0011100110000011010100100000001001
+## 115: MAR <- MBR; MDR <- read_word(MAR); GO TO 116
+firmware[115] = 0b0011101000000001010010000000010010
+## 116: Y <- MDR; GO TO 0
+firmware[116] = 0b0000000000000001010000001000000000
+
+# Y <- Y + 1
+## 117: Y e MDR <- Y + 1; GO TO 0
+firmware[117] = 0b0000000000000011010100001000000100
+
+# mem[adress] <- Y
+## 118: PC <- PC + 1; fetch; GO TO 119
+firmware[118] = 0b0011101110000011010100100000001001
+## 119: MAR <- MBR; GO TO 120
+firmware[119] = 0b0011110000000001010010000000000010
+## 120: MDR <- Y; mem[MAR] <- MDR; GO TO 0
+firmware[120] = 0b0000000000000001010001000000100100
+
+# Y <- Y - 1
+## 121: Y <- Y - 1; GO TO 0
+firmware[121] = 0b0000000000000011011000001000000100
+
+# mem[adress] <- mem[adress] - 1
+# 122: PC <- PC + 1; fetch; GO TO 123
+firmware[122] = 0b0011110110000011010100100000001001
+# 123: MAR <- MBR; MDR <- read_word(MAR); GO TO 124
+firmware[123] = 0b0011111000000001010010000000010010
+# 124: MDR <- MDR - 1; mem[MAR] <- MDR; GO TO 0
+firmware[124] = 0b0000000000000011011001000000100000
+
+#halt:
+firmware[255] = 0b0000000000000000000000000000000000
+
+
+
+def read_regs(reg_num):
+  global MDR, PC, MBR, X, Y, W, V, H, BUS_A, BUS_B
+  BUS_A = H
+  if reg_num == 0:
+    BUS_B = MDR
+  elif reg_num == 1:
+    BUS_B = PC
+  elif reg_num == 2:
+    BUS_B = MBR
+  elif reg_num == 3:
+    BUS_B = X
+  elif reg_num == 4:
+    BUS_B = Y
+  elif reg_num == 5:
+    BUS_B = W
+  elif reg_num == 6:
+    BUS_B = V
+  else:
+    BUS_B = 0
+		
+def write_regs(reg_bits):
+  global MAR, MDR, PC, X, Y, W, V, H, BUS_C
+  if reg_bits & 0b10000000:
+    MAR = BUS_C
+  if reg_bits & 0b01000000:
+    MDR = BUS_C
+  if reg_bits & 0b00100000:
+    PC = BUS_C
+  if reg_bits & 0b00010000:
+    X = BUS_C
+  if reg_bits & 0b00001000:
+    Y = BUS_C
+  if reg_bits & 0b00000100:
+    W = BUS_C
+  if reg_bits & 0b00000010:
+    V = BUS_C
+  if reg_bits & 0b00000001:
+    H = BUS_C
+def alu(control_bits):
+	global N, Z, BUS_A, BUS_B, BUS_C
+	
+	a = BUS_A
+	b = BUS_B
+	o = 0
+	
+	shift_bits = control_bits & 0b11000000
+	shift_bits = shift_bits >> 6
+	
+	control_bits = control_bits & 0b00111111
+	
+	if control_bits == 0b011000:
+		o = a
+	elif control_bits == 0b010100:
+		o = b
+	elif control_bits == 0b011010:
+		o = ~a
+	elif control_bits == 0b101100: #Multiplicação de números positivos
+		o = (a * b) & 0b11111111111111111111111111111111
+	elif control_bits == 0b111100:
+		o = a + b
+	elif control_bits == 0b111101:
+		o = a + b + 1
+	elif control_bits == 0b111001:
+		o = a + 1
+	elif control_bits == 0b110101:
+		o = b + 1
+	elif control_bits == 0b111111:
+		o = b - a
+	elif control_bits == 0b110110:
+		o = b - 1
+	elif control_bits == 0b111011:
+		o = -a
+	elif control_bits == 0b001100:
+		o = a & b
+	elif control_bits == 0b011100:
+		o = a | b
+	elif control_bits == 0b010000:
+		o = 0
+	elif control_bits == 0b110001:
+		o = 1
+	elif control_bits == 0b110010:
+		o = -1
+		
+	if o == 0:
+		N = 0
+		Z = 1
+	else:
+		N = 1
+		Z = 0
+	
+	if shift_bits == 0b01:
+		o = o << 1
+	elif shift_bits == 0b10:
+		o = (o & 0b11111111111111111111111111111111) >> 1
+	elif shift_bits == 0b11:
+		o = o << 8
+		
+	BUS_C = o
+	
+def next_instruction(next, jam):
+	global MPC, MBR, N, Z
+	
+	if jam == 0b000:
+		MPC = next 
+		return
+		
+	if jam & 0b001:
+		next = next | (Z << 8)
+	
+	if jam & 0b010:
+		next = next | (N << 8)
+		
+	if jam & 0b100:
+		next = next | MBR
+
+	MPC = next
+	
+def memory_io(mem_bits):
+	global PC, MBR, MDR, MAR
+	
+	if mem_bits & 0b001:
+		MBR = memory.read_byte(PC)
+
+	if mem_bits & 0b010:
+		MDR = memory.read_word(MAR)
+		
+	if mem_bits & 0b100:
+		memory.write_word(MAR, MDR)
+		
+def step():
+    global MIR, MPC
+	
+    MIR = firmware[MPC]
+    if MIR == 0:
+        return False
+    read_regs       ( MIR & 0b0000000000000000000000000000000111)
+    alu             ((MIR & 0b0000000000001111111100000000000000) >> 14)
+    write_regs      ((MIR & 0b0000000000000000000011111111000000) >> 6)
+    memory_io       ((MIR & 0b0000000000000000000000000000111000) >> 3)
+    next_instruction((MIR & 0b1111111110000000000000000000000000) >> 25, (MIR &   0b0000000001110000000000000000000000) >> 22)
+	
+    return True
